@@ -1,2 +1,0 @@
-import streamlit as st
-st.title("這是我的第二頁！")
