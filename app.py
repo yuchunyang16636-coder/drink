@@ -9,10 +9,8 @@ st.set_page_config(page_title="加碼抽獎系統", layout="wide")
 
 st.markdown("""
     <style>
-    /* 隱藏預設選單與標頭 */
     header[data-testid="stHeader"] { display: none !important; }
     
-    /* 大標題樣式 */
     .main-title {
         text-align: center;
         font-size: 5rem;
@@ -22,7 +20,6 @@ st.markdown("""
         margin-bottom: 30px;
     }
     
-    /* 拉霸機數字框樣式 */
     .slot-box {
         background: linear-gradient(180deg, #222 0%, #000 50%, #222 100%);
         color: #ffffff;
@@ -36,7 +33,6 @@ st.markdown("""
         font-family: 'Courier New', Courier, monospace;
     }
     
-    /* 數字鎖定後的發光樣式 */
     .slot-box.locked {
         color: #FFD700;
         border-color: #FFD700;
@@ -44,7 +40,6 @@ st.markdown("""
         background: linear-gradient(180deg, #333 0%, #111 50%, #333 100%);
     }
     
-    /* 恭喜中獎者姓名樣式 */
     .winner-name {
         text-align: center;
         font-size: 4rem;
@@ -60,7 +55,6 @@ st.markdown("""
         100% { transform: scale(1.05); }
     }
     
-    /* 抽獎按鈕放大 */
     div[data-testid="stButton"] > button {
         background: linear-gradient(to bottom, #e52d27, #b31217) !important;
         color: white !important;
@@ -76,80 +70,90 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. 模擬內部人員名單 (未來可替換為 Excel/CSV 讀取)
+# 2. 自動匯入的人員名單 (萃取自 PDF)
 # ==========================================
-# 這裡使用 Dictionary 對應 5位數卡號 -> 姓名
-ROSTER = {
-    "10001": "王大明",
-    "20045": "李小華",
-    "35099": "張阿春",
-    "48102": "陳美麗",
-    "55688": "林霸天",
-    "88888": "總經理",
-    "90321": "黃大仙"
-}
+# 這是從你提供的 PDF 擷取出來的完整 74 人名單
+if "FULL_ROSTER" not in st.session_state:
+    st.session_state.FULL_ROSTER = {
+        "08819": "江振明", "09274": "賴烱彰", "09644": "李文豪", "10184": "宋俊宏",
+        "10807": "葉岱耿", "10916": "陳高爵", "11088": "楊彩玲", "11265": "劉忠育",
+        "12149": "梁家銘", "12151": "劉昆峰", "12153": "林賜松", "12155": "詹益昌",
+        "12350": "蘇德龍", "12420": "林峻弘", "12425": "林仲葦", "12430": "謝宗廷",
+        "12431": "林啓祺", "12438": "王銘祥", "12451": "黄耀弘", "12452": "賴建安",
+        "12460": "陳士傑", "12596": "余嘉偉", "12697": "徐崇益", "12744": "馬忠榕",
+        "12772": "張書諺", "12846": "林昇治", "13020": "賴日宏", "13021": "張皓誠",
+        "13024": "彭莉惠", "13059": "陳映宏", "13060": "廖愷文", "13082": "呉宗蔚",
+        "13085": "羅匀男", "13110": "松下靖", "13112": "呉敏誌", "13114": "辜智源",
+        "13115": "盧政偉", "13390": "蔡國正", "13391": "廖君桓", "13419": "簡志宏",
+        "13433": "王競德", "13840": "卓孟翰", "13841": "李柏昌", "14360": "馮文毅",
+        "14515": "陳勇全", "14526": "陳榮傑", "14563": "林位達", "14564": "黃文豪",
+        "14942": "簡廷宇", "14971": "池文宇", "15333": "吳岳興", "15334": "趙浩丞",
+        "15983": "郭柏辰", "15986": "陳丙元", "16106": "王怡翔", "16636": "楊祐郡",
+        "16639": "蔡明恩", "16649": "陳伯翰", "16684": "林俊哲", "17263": "吳信志",
+        "17557": "蔡廸軒", "17755": "何思諭", "17770": "李玫錦", "17771": "蘇煜恩",
+        "17798": "許豪志", "17956": "陳妤真", "17959": "陳官哲", "17969": "哖欣穎",
+        "17977": "林家輝", "17986": "廖學翊", "18060": "謝震昱", "18082": "曾偉豪",
+        "18116": "徐煒家", "70119": "松下"
+    }
+
+# 使用 session_state 來記錄「已中獎名單」，達成抽過排除的功能
+if "drawn_roster" not in st.session_state:
+    st.session_state.drawn_roster = []
 
 # ==========================================
 # 3. 主畫面版面配置
 # ==========================================
 st.markdown('<div class="main-title">🎉 長官加碼幸運抽獎 🎉</div>', unsafe_allow_html=True)
 
-# 建立 5 個欄位來放置拉霸機數字
 col1, col2, col3, col4, col5 = st.columns(5)
 placeholders = [col1.empty(), col2.empty(), col3.empty(), col4.empty(), col5.empty()]
 
-# 預設畫面顯示問號
 for p in placeholders:
     p.markdown('<div class="slot-box">?</div>', unsafe_allow_html=True)
 
-# 建立一個佔位符來顯示最終的得獎者姓名
 winner_placeholder = st.empty()
-
-# 置中放置抽獎按鈕
 _, btn_col, _ = st.columns([1, 1, 1])
 
 # ==========================================
-# 4. 抽獎與動畫邏輯
+# 4. 抽獎與動畫邏輯 (優化版)
 # ==========================================
 with btn_col:
     draw_clicked = st.button("🎰 啟動加碼抽獎", use_container_width=True)
 
+# 找出還沒中獎的人 (排除已抽過的名單)
+available_pool = [uid for uid in st.session_state.FULL_ROSTER.keys() if uid not in st.session_state.drawn_roster]
+
 if draw_clicked:
-    # 每次按鈕按下時，先清空上一次的得獎者名字
-    winner_placeholder.empty()
-    
-    # 步驟 A: 在背景先決定好得獎者是誰
-    winner_id = random.choice(list(ROSTER.keys()))
-    winner_name = ROSTER[winner_id]
-    target_digits = list(winner_id)  # 將 "10001" 拆成 ['1', '0', '0', '0', '1']
-    
-    # 步驟 B: 決定數字鎖定的順序 (保證不會死板地由左至右)
-    # random.sample(range(5), 5) 會產生如 [2, 0, 4, 1, 3] 的隨機順序
-    stop_order = random.sample(range(5), 5)
-    locked = [False] * 5
-    
-    # 步驟 C: 執行拉霸動畫
-    total_frames = 100  # 總共跳動 100 個影格
-    for frame in range(total_frames):
-        # 根據影格進度，依序鎖定隨機欄位
-        if frame == 20: locked[stop_order[0]] = True
-        if frame == 40: locked[stop_order[1]] = True
-        if frame == 60: locked[stop_order[2]] = True
-        if frame == 80: locked[stop_order[3]] = True
-        if frame == 99: locked[stop_order[4]] = True
+    if not available_pool:
+        st.error("名單內的所有人都已經抽過囉！")
+    else:
+        winner_placeholder.empty()
         
-        # 更新 5 個欄位的畫面
-        for i in range(5):
-            if locked[i]:
-                # 已鎖定的欄位顯示正確數字與發光特效
-                placeholders[i].markdown(f'<div class="slot-box locked">{target_digits[i]}</div>', unsafe_allow_html=True)
-            else:
-                # 未鎖定的欄位繼續亂數跳動
-                placeholders[i].markdown(f'<div class="slot-box">{random.randint(0, 9)}</div>', unsafe_allow_html=True)
+        # 決定得獎者
+        winner_id = random.choice(available_pool)
+        winner_name = st.session_state.FULL_ROSTER[winner_id]
+        target_digits = list(winner_id)
         
-        # 控制滾動速度 (越小轉越快)
-        time.sleep(0.04)
-    
-    # 步驟 D: 動畫結束，噴發氣球並顯示姓名
-    st.balloons()
-    winner_placeholder.markdown(f'<div class="winner-name">🎊 恭喜中獎：{winner_name} 🎊</div>', unsafe_allow_html=True)
+        # 紀錄已抽過
+        st.session_state.drawn_roster.append(winner_id)
+        
+        # 決定亂數跳停順序
+        stop_order = random.sample(range(5), 5)
+        locked = [False] * 5
+        
+        # --- 逼真的煞車動畫 (由快到極慢) ---
+        # 這裡設定 5 個欄位分別在第幾次跳動時鎖定
+        # 例如第一個停在第 15 跳，最後一個要撐到第 60 跳才停
+        stop_frames = [15, 25, 35, 45, 60] 
+        
+        base_delay = 0.03 # 初始速度 (修改這裡可調整最快速度)
+        
+        for frame in range(1, stop_frames[-1] + 1):
+            # 檢查並鎖定該停的欄位
+            for i, target_frame in enumerate(stop_frames):
+                if frame == target_frame:
+                    locked[stop_order[i]] = True
+            
+            # 更新畫面
+            for i in range(5):
+                if locked
