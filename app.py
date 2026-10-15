@@ -156,4 +156,4 @@ if draw_clicked:
             
             # 更新畫面
             for i in range(5):
-                if locked
+                if locked:
