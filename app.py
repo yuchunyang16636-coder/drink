@@ -72,7 +72,6 @@ st.markdown("""
 # ==========================================
 # 2. 自動匯入的人員名單 (萃取自 PDF)
 # ==========================================
-# 這是從你提供的 PDF 擷取出來的完整 74 人名單
 if "FULL_ROSTER" not in st.session_state:
     st.session_state.FULL_ROSTER = {
         "08819": "江振明", "09274": "賴烱彰", "09644": "李文豪", "10184": "宋俊宏",
@@ -96,7 +95,6 @@ if "FULL_ROSTER" not in st.session_state:
         "18116": "徐煒家", "70119": "松下"
     }
 
-# 使用 session_state 來記錄「已中獎名單」，達成抽過排除的功能
 if "drawn_roster" not in st.session_state:
     st.session_state.drawn_roster = []
 
@@ -115,12 +113,11 @@ winner_placeholder = st.empty()
 _, btn_col, _ = st.columns([1, 1, 1])
 
 # ==========================================
-# 4. 抽獎與動畫邏輯 (優化版)
+# 4. 抽獎與動畫邏輯
 # ==========================================
 with btn_col:
     draw_clicked = st.button("🎰 啟動加碼抽獎", use_container_width=True)
 
-# 找出還沒中獎的人 (排除已抽過的名單)
 available_pool = [uid for uid in st.session_state.FULL_ROSTER.keys() if uid not in st.session_state.drawn_roster]
 
 if draw_clicked:
@@ -129,31 +126,38 @@ if draw_clicked:
     else:
         winner_placeholder.empty()
         
-        # 決定得獎者
         winner_id = random.choice(available_pool)
         winner_name = st.session_state.FULL_ROSTER[winner_id]
         target_digits = list(winner_id)
         
-        # 紀錄已抽過
         st.session_state.drawn_roster.append(winner_id)
         
-        # 決定亂數跳停順序
         stop_order = random.sample(range(5), 5)
         locked = [False] * 5
         
-        # --- 逼真的煞車動畫 (由快到極慢) ---
-        # 這裡設定 5 個欄位分別在第幾次跳動時鎖定
-        # 例如第一個停在第 15 跳，最後一個要撐到第 60 跳才停
         stop_frames = [15, 25, 35, 45, 60] 
-        
-        base_delay = 0.03 # 初始速度 (修改這裡可調整最快速度)
+        base_delay = 0.03
         
         for frame in range(1, stop_frames[-1] + 1):
-            # 檢查並鎖定該停的欄位
             for i, target_frame in enumerate(stop_frames):
                 if frame == target_frame:
                     locked[stop_order[i]] = True
             
-            # 更新畫面
             for i in range(5):
                 if locked[i]:
+                    placeholders[i].markdown(f'<div class="slot-box locked">{target_digits[i]}</div>', unsafe_allow_html=True)
+                else:
+                    placeholders[i].markdown(f'<div class="slot-box">{random.randint(0, 9)}</div>', unsafe_allow_html=True)
+            
+            current_delay = base_delay + (frame / stop_frames[-1])**3 * 0.25
+            time.sleep(current_delay)
+        
+        st.balloons()
+        winner_placeholder.markdown(f'<div class="winner-name">🎊 恭喜中獎：{winner_name} 🎊</div>', unsafe_allow_html=True)
+
+with st.sidebar:
+    st.write(f"👥 可抽獎總人數: {len(available_pool)}")
+    st.write(f"🏆 已中獎人數: {len(st.session_state.drawn_roster)}")
+    if st.button("⚠️ 重置抽獎名單 (清空已中獎紀錄)"):
+        st.session_state.drawn_roster = []
+        st.rerun()
