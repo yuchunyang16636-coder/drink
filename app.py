@@ -200,7 +200,7 @@ winner_placeholder = st.empty()
 # 按鈕置中
 _, btn_col, _ = st.columns([1, 2, 1])
 with btn_col:
-    draw_clicked = st.button("🎰 啟動加碼抽獎", use_container_width=True)
+    draw_clicked = st.button("🎰 加碼抽獎!!GO!!", use_container_width=True)
 
 # ==========================================
 # 4. 抽獎與動畫邏輯
@@ -244,7 +244,7 @@ if draw_clicked:
 # 5. 公開中獎名單 (清晰卡片版)
 # ==========================================
 st.markdown("<br><br>", unsafe_allow_html=True)
-st.markdown('<h2 style="color: #FFD700; text-align: center; text-shadow: 2px 2px 5px rgba(0,0,0,0.8);">🏆 歷屆加碼中獎名單</h2>', unsafe_allow_html=True)
+st.markdown('<h2 style="color: #FFD700; text-align: center; text-shadow: 2px 2px 5px rgba(0,0,0,0.8);">🏆 加碼中獎名單</h2>', unsafe_allow_html=True)
 
 if st.session_state.drawn_roster:
     cards_html = '<div class="winner-card-container">'
