@@ -1,288 +1,264 @@
 import streamlit as st
-import time
-import random
-import base64
+import datetime
 
 # ==========================================
-# ⚙️ 參數設定區
+# 1. 頁面基本設定與日系文青 CSS
 # ==========================================
-# 👇 請將你的背景圖片上傳到 GitHub，並將檔名填寫在這裡
-BG_IMAGE_PATH = "0002.jfif"
+st.set_page_config(page_title="辦公室訂飲料系統", page_icon="🧋", layout="centered")
 
-BASE_DELAY = 0.015       
-BRAKE_FACTOR = 0.15      
-STOP_FRAMES = [20, 40, 60, 80, 100]  
-
-# ==========================================
-# 圖片轉碼工具 (讓 Streamlit 能讀取本地圖片做為背景)
-# ==========================================
-def get_base64_of_bin_file(bin_file):
-    try:
-        with open(bin_file, 'rb') as f:
-            data = f.read()
-        return base64.b64encode(data).decode()
-    except FileNotFoundError:
-        return ""
-
-bg_base64 = get_base64_of_bin_file(BG_IMAGE_PATH)
-
-# 判斷是否有成功讀取到圖片
-if bg_base64:
-    bg_css = f"""
-        background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("data:image/jpeg;base64,{bg_base64}");
-        background-size: cover !important;
-        background-position: center !important;
-        background-attachment: fixed !important;
-    """
-else:
-    bg_css = "background: #222;"
-
-# ==========================================
-# 1. 頁面與 CSS 視覺設定
-# ==========================================
-st.set_page_config(page_title="加碼抽獎系統", layout="wide", initial_sidebar_state="collapsed")
-
-st.markdown(f"""
+st.markdown("""
     <style>
-    /* 隱藏預設選單、標頭與側邊欄 */
-    header[data-testid="stHeader"] {{ display: none !important; }}
-    section[data-testid="stSidebar"] {{ display: none !important; }}
-    button[title="View fullscreen"] {{ display: none !important; }}
+    @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700;900&display=swap');
     
-    .stApp {{
-        {bg_css}
-    }}
-    
-    .main-title {{
+    html, body, [class*="st-"] {
+        font-family: 'Zen Maru Gothic', sans-serif !important;
+        font-weight: 700 !important;
+    }
+    .main-title {
         text-align: center;
-        font-size: 5rem;
+        font-size: clamp(2rem, 8vw, 3.5rem); 
         font-weight: 900;
-        color: #FFD700;
-        text-shadow: 2px 2px 10px rgba(255, 215, 0, 0.5);
-        margin-bottom: 20px;
-    }}
-    
-    /* 戰情儀表板樣式 */
-    .dashboard-container {{
-        display: flex;
-        justify-content: center;
-        gap: 30px;
-        margin-bottom: 30px;
-    }}
-    
-    .stat-box {{
-        background: rgba(255, 255, 255, 0.1);
-        border: 2px solid rgba(255, 215, 0, 0.5);
-        border-radius: 10px;
-        padding: 10px 30px;
+        color: #5A544B; 
+        margin-bottom: 10px;
+    }
+    .sub-title {
         text-align: center;
-        backdrop-filter: blur(5px);
-    }}
-    
-    .stat-title {{ color: #ddd; font-size: 1.2rem; margin-bottom: 5px; }}
-    .stat-value {{ color: #FFD700; font-size: 2.5rem; font-weight: bold; line-height: 1; }}
-
-    .slot-box {{
-        background: linear-gradient(180deg, rgba(34,34,34,0.9) 0%, rgba(0,0,0,0.9) 50%, rgba(34,34,34,0.9) 100%);
-        color: #ffffff;
-        font-size: 8rem;
-        font-weight: bold;
-        text-align: center;
-        border-radius: 15px;
-        padding: 20px 0;
-        border: 4px solid #555;
-        box-shadow: inset 0px 10px 20px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5);
-        font-family: 'Courier New', Courier, monospace;
-    }}
-    
-    .slot-box.locked {{
-        color: #FFD700;
-        border-color: #FFD700;
-        text-shadow: 0 0 20px #FFD700;
-        background: linear-gradient(180deg, rgba(51,51,51,0.9) 0%, rgba(17,17,17,0.9) 50%, rgba(51,51,51,0.9) 100%);
-    }}
-    
-    .winner-name {{
-        text-align: center;
-        font-size: 5rem;
-        font-weight: 900;
-        color: #00FF7F;
-        margin-top: 20px;
-        text-shadow: 3px 3px 15px rgba(0,0,0,0.9);
-        animation: pulse 1s infinite alternate;
-    }}
-    
-    @keyframes pulse {{
-        0% {{ transform: scale(1); }}
-        100% {{ transform: scale(1.05); }}
-    }}
-    
-    div[data-testid="stButton"] > button {{
-        background: linear-gradient(to bottom, #e52d27, #b31217) !important;
-        color: white !important;
-        height: 90px !important;
-        border-radius: 45px !important;
-        border: 3px solid #fff !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.7) !important;
-        margin-top: 20px;
-        margin-bottom: 20px;
-    }}
-    
-    div[data-testid="stButton"] > button p {{
-        font-size: 40px !important;
-        font-weight: 900 !important;
-        text-shadow: 2px 2px 5px rgba(0,0,0,0.5);
-    }}
-    
-    /* 歷屆名單樣式優化 */
-    .winner-card-container {{
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        justify-content: center;
-        margin-top: 20px;
-    }}
-    
-    .winner-card {{
-        background: rgba(255, 255, 255, 0.95);
-        color: #111;
-        padding: 10px 20px;
-        border-radius: 8px;
+        color: #8B9A92; 
+        font-size: clamp(1.1rem, 4vw, 1.5rem);
+        margin-bottom: 40px;
+    }
+    div[data-testid="stButton"] > button {
+        background-color: #A3B19B !important; 
+        color: #FFFFFF !important;
+        border: none !important;
+        border-radius: 12px !important; 
+        transition: all 0.3s ease !important;
+    }
+    div[data-testid="stButton"] > button:hover {
+        background-color: #8F9E87 !important; 
+        transform: translateY(-2px); 
+    }
+    .price-tag {
         font-size: 1.5rem;
-        font-weight: bold;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        border-left: 5px solid #e52d27;
-    }}
-    
-    .winner-card span {{
-        color: #555;
-        font-size: 1.2rem;
-        margin-left: 8px;
-    }}
-    
-    /* 右下角重置按鈕樣式 */
-    .reset-btn-container {{ position: fixed; bottom: 20px; right: 20px; z-index: 999; }}
-    .reset-btn-container button {{
-        height: 50px !important; font-size: 16px !important; background: rgba(0,0,0,0.5) !important;
-        border: 1px solid #555 !important; border-radius: 10px !important;
-    }}
+        color: #d9534f;
+        text-align: right;
+        font-weight: 900;
+        padding-top: 10px;
+    }
+    /* 訂單卡片樣式 */
+    .order-card {
+        background-color: #f9f9f9;
+        border-left: 5px solid #A3B19B;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    header[data-testid="stHeader"] { display: none !important; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. 自動匯入的人員名單
+# 2. 多層次飲料店資料庫 (Shop -> Category -> Drink -> Size/Price)
 # ==========================================
-if "FULL_ROSTER" not in st.session_state:
-    st.session_state.FULL_ROSTER = {
-        "08819": "江振明", "09274": "賴烱彰", "09644": "李文豪", "10184": "宋俊宏",
-        "10807": "葉岱耿", "11088": "楊彩玲", "11265": "劉忠育", "12149": "梁家銘",
-        "12151": "劉昆峰", "12153": "林賜松", "12155": "詹益昌", "12350": "蘇德龍", 
-        "12430": "謝宗廷", "12431": "林啓祺", "12438": "林佳青", "12452": "賴建安",
-        "12460": "陳士傑", "12596": "余嘉偉", "12744": "馬忠榕", "12772": "張書諺", 
-        "13020": "賴日宏", "13024": "彭莉惠", "13082": "呉宗蔚", "13085": "羅匀男", 
-        "13110": "王銘祥", "13112": "呉敏誌", "13114": "辜智源", "13390": "蔡國正", 
-        "13391": "廖君桓", "13433": "王競德", "14942": "簡廷宇", "14971": "池文宇", 
-        "15333": "吳岳興", "15334": "趙浩丞", "15983": "郭柏辰", "16636": "楊祐郡",
-        "16684": "林俊哲", "17263": "吳信志", "17557": "蔡廸軒", "17770": "李玫錦", 
-        "17771": "蘇煜恩", "17956": "陳妤真", "17959": "陳官哲", "17969": "哖欣穎",
-        "17986": "廖學翊", "18116": "徐煒家", "70119": "松下靖"
+# 根據菜單圖片建立的結構範例。未來新增菜單只需依照此格式往下加即可。
+SHOP_MENUS = {
+    "得正": {
+        "categories": {
+            "Original TEA (原味茶)": {
+                "紅茶": {"M": 25, "L": 30},
+                "綠茶": {"M": 25, "L": 30},
+                "春烏龍": {"M": 30, "L": 35},
+                "焙烏龍": {"M": 30, "L": 35}
+            },
+            "Classic MILK TEA (奶茶)": {
+                "奶茶": {"M": 45, "L": 50},
+                "焙烏龍奶茶": {"M": 45, "L": 50},
+                "珍珠奶茶": {"M": 55, "L": 60}
+            }
+        },
+        "toppings": {"珍珠": 10, "黃金珍珠": 10, "焙烏龍茶凍": 10}
+    },
+    "可不可熟成紅茶": {
+        "categories": {
+            "乎乾。好茶": {
+                "熟成紅茶": {"M": 30, "L": 35},
+                "麗春紅茶": {"M": 30, "L": 35},
+                "春芽綠茶": {"M": 30, "L": 35}
+            },
+            "乎乾。鮮奶茶": {
+                "熟成歐蕾": {"M": 55, "L": 65},
+                "白玉歐蕾": {"M": 60, "L": 70}
+            }
+        },
+        "toppings": {"白玉珍珠": 10, "水玉晶球": 15, "春梅凍": 15}
+    },
+    "50嵐": {
+        "categories": {
+            "找好茶": {
+                "茉莉綠茶": {"M": 30, "L": 35},
+                "四季春青茶": {"M": 30, "L": 35},
+                "波霸綠": {"M": 35, "L": 45}
+            },
+            "找奶茶": {
+                "奶茶": {"M": 40, "L": 55},
+                "波霸奶茶": {"M": 40, "L": 55}
+            }
+        },
+        "toppings": {"波霸": 10, "珍珠": 10, "燕麥": 10, "椰果": 10}
     }
+}
 
-if "drawn_roster" not in st.session_state:
-    st.session_state.drawn_roster = []
-
-# ==========================================
-# 3. 主畫面版面配置
-# ==========================================
-st.markdown('<div class="main-title">🎉 長官加碼幸運抽獎 🎉</div>', unsafe_allow_html=True)
-
-# 計算戰情資訊
-total_people = len(st.session_state.FULL_ROSTER)
-drawn_count = len(st.session_state.drawn_roster)
-remain_count = total_people - drawn_count
-win_rate = round((1 / remain_count) * 100, 2) if remain_count > 0 else 0
-
-# 顯示置中戰情儀表板
-st.markdown(f"""
-    <div class="dashboard-container">
-        <div class="stat-box"><div class="stat-title">總人數</div><div class="stat-value">{total_people}</div></div>
-        <div class="stat-box"><div class="stat-title">已中獎</div><div class="stat-value" style="color: #ff4b4b;">{drawn_count}</div></div>
-        <div class="stat-box"><div class="stat-title">剩餘可抽</div><div class="stat-value">{remain_count}</div></div>
-        <div class="stat-box"><div class="stat-title">中獎機率</div><div class="stat-value" style="color: #00FF7F;">{win_rate}%</div></div>
-    </div>
-""", unsafe_allow_html=True)
-
-# 建立 5 個數字欄位
-col1, col2, col3, col4, col5 = st.columns(5)
-placeholders = [col1.empty(), col2.empty(), col3.empty(), col4.empty(), col5.empty()]
-
-for p in placeholders:
-    p.markdown('<div class="slot-box">?</div>', unsafe_allow_html=True)
-
-winner_placeholder = st.empty()
-
-# 按鈕置中與寬度縮小調整 (比例為 1.5 : 1 : 1.5)
-_, btn_col, _ = st.columns([1.5, 1, 1.5])
-with btn_col:
-    draw_clicked = st.button("🎰 加碼抽獎!!GO!!", use_container_width=True)
+SUGAR_OPTIONS = ["正常糖", "少糖", "半糖", "微糖", "一分糖", "無糖"]
+ICE_OPTIONS = ["正常冰", "少冰", "微冰", "去冰", "完全去冰", "溫", "熱"]
 
 # ==========================================
-# 4. 抽獎與動畫邏輯
+# 3. 初始化 Session State
 # ==========================================
-available_pool = [uid for uid in st.session_state.FULL_ROSTER.keys() if uid not in st.session_state.drawn_roster]
+if "page" not in st.session_state: st.session_state.page = "home"
+if "device_type" not in st.session_state: st.session_state.device_type = ""
+if "order_date" not in st.session_state: st.session_state.order_date = datetime.date.today()
+if "shop_name" not in st.session_state: st.session_state.shop_name = "請選擇..."
+if "orders" not in st.session_state: st.session_state.orders = []
 
-if draw_clicked:
-    if not available_pool:
-        st.error("名單內的所有人都已經抽過囉！")
-    else:
-        winner_placeholder.empty()
+def delete_order(index):
+    st.session_state.orders.pop(index)
+
+# ==========================================
+# 4. 第一頁：極簡首頁 (選擇裝置)
+# ==========================================
+if st.session_state.page == "home":
+    st.markdown('<div class="main-title">🧋 辦公室訂飲料系統</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">請選擇您的點餐裝置</div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("💻 電腦版", use_container_width=True):
+            st.session_state.device_type = "網頁版"
+            st.session_state.page = "order"
+            st.rerun()
+    with col2:
+        if st.button("📱 手機版", use_container_width=True):
+            st.session_state.device_type = "手機版"
+            st.session_state.page = "order"
+            st.rerun()
+
+# ==========================================
+# 5. 第二頁：點餐與購物車
+# ==========================================
+elif st.session_state.page == "order":
+    col_back, col_title = st.columns([1, 4])
+    with col_back:
+        if st.button("⬅️ 返回首頁"):
+            st.session_state.page = "home"
+            st.rerun()
+    with col_title:
+        st.markdown(f"<div style='text-align: right; color: #8B9A92; padding-top: 10px;'>模式：{st.session_state.device_type}</div>", unsafe_allow_html=True)
         
-        winner_id = random.choice(available_pool)
-        winner_name = st.session_state.FULL_ROSTER[winner_id]
-        target_digits = list(winner_id)
+    st.markdown("---")
+    
+    # --- 步驟 1：店家選擇 ---
+    st.markdown("### 📋 步驟 1：設定飲料店")
+    shop_options = ["請選擇..."] + list(SHOP_MENUS.keys()) + ["其他 (自行輸入)"]
+    selected_shop = st.selectbox("🏪 選擇飲料店", options=shop_options, index=shop_options.index(st.session_state.shop_name) if st.session_state.shop_name in shop_options else 0)
+    st.session_state.shop_name = selected_shop
+
+    if st.session_state.shop_name != "請選擇...":
+        st.markdown("---")
+        # --- 步驟 2：點餐表單 ---
+        st.markdown(f"### 📝 步驟 2：填寫點餐單 ({st.session_state.shop_name})")
         
-        st.session_state.drawn_roster.append(winner_id)
-        
-        stop_order = random.sample(range(5), 5)
-        locked = [False] * 5
-        
-        for frame in range(1, STOP_FRAMES[-1] + 1):
-            for i, target_frame in enumerate(STOP_FRAMES):
-                if frame >= target_frame:
-                    locked[stop_order[i]] = True
+        with st.container(border=True):
+            user_name = st.text_input("👤 您的姓名 (必填)")
             
-            for i in range(5):
-                if locked[i]:
-                    placeholders[i].markdown(f'<div class="slot-box locked">{target_digits[i]}</div>', unsafe_allow_html=True)
+            # 計價變數初始化
+            base_price = 0
+            toppings_price = 0
+            
+            if st.session_state.shop_name == "其他 (自行輸入)":
+                drink_name = st.text_input("🥤 飲料名稱")
+                size = st.selectbox("📏 尺寸", ["M", "L", "瓶裝"])
+                base_price = st.number_input("💰 飲料單價 (元)", min_value=0, value=0)
+                selected_toppings = []
+            else:
+                # 動態連動選單：分類 -> 飲料 -> 尺寸 -> 價格
+                shop_data = SHOP_MENUS[st.session_state.shop_name]
+                categories = list(shop_data["categories"].keys())
+                
+                col_cat, col_drink = st.columns(2)
+                with col_cat:
+                    selected_category = st.selectbox("📑 選擇分類", categories)
+                with col_drink:
+                    drinks_in_cat = list(shop_data["categories"][selected_category].keys())
+                    drink_name = st.selectbox("🥤 選擇飲料", drinks_in_cat)
+                
+                # 取得該飲料支援的尺寸與價格
+                available_sizes = shop_data["categories"][selected_category][drink_name]
+                
+                col_size, col_topping = st.columns(2)
+                with col_size:
+                    size = st.radio("📏 尺寸", list(available_sizes.keys()), horizontal=True)
+                    base_price = available_sizes[size] # 讀取基礎價格
+                
+                with col_topping:
+                    available_toppings = list(shop_data["toppings"].keys())
+                    selected_toppings = st.multiselect("➕ 加料 (可複選)", available_toppings)
+                    # 計算加料總價
+                    for t in selected_toppings:
+                        toppings_price += shop_data["toppings"][t]
+
+            col_sugar, col_ice = st.columns(2)
+            with col_sugar:
+                sugar = st.selectbox("🍬 甜度", SUGAR_OPTIONS, index=2)
+            with col_ice:
+                ice = st.selectbox("🧊 冰塊", ICE_OPTIONS, index=3)
+                
+            note = st.text_input("📝 備註 (其他客製化要求)")
+            
+            # 即時計算總價
+            total_price = base_price + toppings_price
+            st.markdown(f"<div class='price-tag'>小計：{total_price} 元</div>", unsafe_allow_html=True)
+            
+            if st.button("✅ 加入訂單", use_container_width=True, type="primary"):
+                if user_name.strip() == "":
+                    st.error("⚠️ 請填寫姓名！")
                 else:
-                    placeholders[i].markdown(f'<div class="slot-box">{random.randint(0, 9)}</div>', unsafe_allow_html=True)
-            
-            current_delay = BASE_DELAY + (frame / STOP_FRAMES[-1])**3 * BRAKE_FACTOR
-            time.sleep(current_delay)
+                    st.session_state.orders.append({
+                        "name": user_name,
+                        "drink": drink_name,
+                        "size": size,
+                        "toppings": ", ".join(selected_toppings) if selected_toppings else "無",
+                        "sugar": sugar,
+                        "ice": ice,
+                        "note": note,
+                        "price": total_price
+                    })
+                    st.success(f"已將 {user_name} 的 {drink_name} 加入清單！")
+                    st.rerun()
+
+        # --- 步驟 3：購物車清單與刪除修改功能 ---
+        st.markdown("---")
+        st.markdown("### 🛒 目前訂單清單")
         
-        st.balloons()
-        winner_placeholder.markdown(f'<div class="winner-name">🎊 恭喜中獎：{winner_name} 🎊</div>', unsafe_allow_html=True)
-
-# ==========================================
-# 5. 公開中獎名單 (清晰卡片版)
-# ==========================================
-st.markdown("<br><br>", unsafe_allow_html=True)
-st.markdown('<h2 style="color: #FFD700; text-align: center; text-shadow: 2px 2px 5px rgba(0,0,0,0.8);">🏆 加碼中獎名單</h2>', unsafe_allow_html=True)
-
-if st.session_state.drawn_roster:
-    cards_html = '<div class="winner-card-container">'
-    for uid in reversed(st.session_state.drawn_roster):
-        cards_html += f'<div class="winner-card">{st.session_state.FULL_ROSTER[uid]}<span>({uid})</span></div>'
-    cards_html += '</div>'
-    st.markdown(cards_html, unsafe_allow_html=True)
-else:
-    st.markdown('<p style="text-align: center; color: #ddd; font-size: 1.2rem;">目前尚無人中獎，趕快按下啟動按鈕吧！</p>', unsafe_allow_html=True)
-
-# ==========================================
-# 6. 右下角隱藏式重置按鈕
-# ==========================================
-st.markdown('<div class="reset-btn-container">', unsafe_allow_html=True)
-if st.button("⚠️ 重置", key="reset_btn"):
-    st.session_state.drawn_roster = []
-    st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
+        if len(st.session_state.orders) == 0:
+            st.info("目前還沒有人點餐喔！")
+        else:
+            total_amount = sum(order["price"] for order in st.session_state.orders)
+            st.markdown(f"**總杯數：** {len(st.session_state.orders)} 杯 ｜ **總金額：** {total_amount} 元")
+            
+            # 顯示每一筆訂單並附帶刪除按鈕
+            for i, order in enumerate(st.session_state.orders):
+                st.markdown(f"""
+                <div class="order-card">
+                    <b>👤 {order["name"]}</b> ── {order["drink"]} ({order["size"]}) <br>
+                    <span style="color:#666; font-size:0.9em;">
+                    🍬 {order["sugar"]} | 🧊 {order["ice"]} | ➕ 加料: {order["toppings"]} | 💰 ${order["price"]}<br>
+                    📝 備註: {order["note"]}
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Streamlit 的按鈕需要獨立的 key
+                if st.button("❌ 刪除此筆", key=f"del_{i}"):
+                    delete_order(i)
+                    st.rerun()
